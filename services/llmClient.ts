@@ -34,10 +34,50 @@ const getApiKey = () => {
 const apiKey = getApiKey() || 'mock-key';
 const ai = new GoogleGenAI({ apiKey });
 
+export async function parseNaturalLanguageQuery(query: string): Promise<{
+    destination: string | null;
+    budget: number | null;
+    origin: string | null;
+    keywords: string[];
+}> {
+    if (!apiKey || apiKey === 'mock-key') return { destination: null, budget: null, origin: null, keywords: [] };
+
+    try {
+        const prompt = `
+            Act as a travel intent parser. Extract parameters from this query: "${query}"
+            
+            Return ONLY a JSON object with:
+            - destination: inferred country or region name (e.g. "Thailand", "Caribbean", "Italy"). If the user asks for a vague concept like "tropical island" or "snowy mountains", pick the single most popular/logical region matching that description.
+            - budget: inferred maximum budget as a number (in USD). If not specified, return null.
+            - origin: origin city/airport code if mentioned (e.g. "from NYC", "from London"). Otherwise null.
+            - keywords: array of specific amenities, vibes, or requirements mentioned (e.g. "jacuzzi", "private beach", "romantic", "hiking", "5 star").
+            
+            Format: {"destination": "string", "budget": 123, "origin": "string", "keywords": ["a", "b"]}
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json"
+            }
+        });
+
+        if (response.text) {
+            return JSON.parse(response.text);
+        }
+        return { destination: null, budget: null, origin: null, keywords: [] };
+    } catch (e) {
+        console.error("NLP Parse Error", e);
+        return { destination: null, budget: null, origin: null, keywords: [] };
+    }
+}
+
 export async function refineStrategyWithAI(
   strategy: Strategy,
   deals: FlightDeal[],
-  profile: FlightProfile
+  profile: FlightProfile,
+  trip?: TripPlan // Added trip to access contextKeywords
 ): Promise<AIAnalysis> {
   // If no API key, return stub
   if (!apiKey || apiKey === 'mock-key') {
@@ -58,6 +98,11 @@ export async function refineStrategyWithAI(
 
     const corePattern = strategy.corePlan[0];
     const backupPattern = strategy.backupPlans[0];
+    
+    // Add User Keywords if available
+    const userKeywords = trip?.contextKeywords?.length 
+        ? `User Preferences/Wants: ${trip.contextKeywords.join(', ')} (IMPORTANT: Address if these amenities are feasible in this destination/budget)` 
+        : "";
 
     const prompt = `
       You are Flytz AI, an elite flight hacking strategist.
@@ -65,6 +110,7 @@ export async function refineStrategyWithAI(
       User Profile:
       - Adventure Level: ${profile.chaosLevel}/5 (1=Direct only, 5=Hidden city/Skiplagging/Long layovers)
       - Budget: $${profile.budgetMax}
+      ${userKeywords}
       
       Current Strategy Generated:
       - Core Plan: ${corePattern ? corePattern.name : 'Standard'} (${corePattern?.nodes.join('->')})
@@ -82,6 +128,7 @@ export async function refineStrategyWithAI(
          - **Currency**: [Name] (Exchange Rate approx 1 USD = X).
          - **Transit**: Walkability score and public transport reliability.
          - **Safety**: Specific safety concerns for tourists.
+         ${trip?.contextKeywords?.length ? `- **Match Analysis**: Evaluate how well this destination fits the user's specific wants (${trip.contextKeywords.join(', ')}).` : ''}
       3. **Risk Assessment**: Analyze the specific risks of the cheapest options found (e.g., "50min layover in LHR is risky", "Self-transfer requires Visa check").
       4. **Optimization Tactics**: Give 2 specific actionable tips to lower the price further (e.g., "Shift to Tuesday departure", "Check separate tickets via [Specific Hub]").
       5. **Insider Tips**: Provide 2-3 unique insights or "hacks" for this specific route (e.g., "Lounge access at [Airport]", "Best seat on [Airline]", "Hidden transfer path").
@@ -234,4 +281,59 @@ export async function analyzeVisaRequirements(
     } catch (e) {
         return "Visa check service offline.";
     }
+}
+
+export async function generateSmartPackingList(
+  deal: FlightDeal,
+  destination: string,
+  startDate: string
+): Promise<string> {
+  if (!apiKey || apiKey === 'mock-key') return "Packing assistant unavailable without API Key.";
+
+  try {
+    const airlines = deal.airlines.join(', ');
+    const stops = deal.stops;
+    const dateStr = startDate;
+
+    const prompt = `
+      You are an expert travel logistics specialist. Generate a "Hyper-Local Packing Strategy" for a trip to **${destination}** starting on **${dateStr}**.
+      
+      Flight Context:
+      - Airline: ${airlines} (Assume standard baggage policies for this carrier).
+      - Stops: ${stops} (If > 0, emphasize carry-on essentials for layovers).
+
+      Please structure the response into these specific, deep-dive sections:
+      
+      1. **Power & Connectivity**:
+         - Specific Plug Type (e.g., Type G, Type A).
+         - Voltage (110V vs 220V) - do they need a converter or just an adapter?
+         - SIM Card advice for this specific location.
+
+      2. **Cultural & Apparel Strategy**:
+         - Dress Code: specific advice for temples, religious sites, restaurants, or beaches in ${destination}.
+         - Taboos: What NOT to wear to avoid offending locals.
+         - Footwear: Precise recommendation based on terrain (e.g., "Cobblestones require thick soles", "Monsoon season requires waterproof sandals").
+
+      3. **Health & Survival Gear**:
+         - Specific threats: (e.g., "High PM2.5 pollution - bring N95", "Dengue risk - DEET required", "Sun intensity").
+         - Water safety: Can they drink tap water?
+         - Pharmacy availability: Easy to find basics or bring your own?
+
+      4. **Airline-Specific Loadout**:
+         - Tactics to maximize carry-on for ${airlines}.
+         - Gate-check avoidance tips.
+
+      Keep it tactical, concise, and highly specific to the location. Use bullet points.
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    return response.text || "Unable to generate packing list.";
+
+  } catch (e) {
+    return "Packing service offline.";
+  }
 }

@@ -1,80 +1,100 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Rocket, ShieldCheck, Map, Terminal, ChevronRight, Mail, Loader2, Check } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Rocket, ShieldCheck, Map, Terminal, ChevronRight, Mail, Loader2, Check, Sparkles, Search } from 'lucide-react';
 import { BUTTON_PRIMARY_CLASSES, BUTTON_SECONDARY_CLASSES } from '../constants';
+import { useFlightStrategy } from '../context/FlightStrategyContext';
+import { parseNaturalLanguageQuery } from '../services/llmClient';
+import { audioEffects } from '../services/audioEffects';
 
 /**
  * --- GOOGLE SHEETS BACKEND SETUP ---
- * 
- * 1. Create a new Google Sheet at sheets.google.com
- * 2. Go to Extensions > Apps Script
- * 3. Delete any existing code in the editor and PASTE THIS CODE:
- * 
- *    function doPost(e) {
- *      var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
- *      var data = JSON.parse(e.postData.contents);
- *      sheet.appendRow([new Date(), data.email]);
- *      return ContentService.createTextOutput(JSON.stringify({ 'result': 'success' })).setMimeType(ContentService.MimeType.JSON);
- *    }
- * 
- * 4. Click "Deploy" > "New Deployment"
- * 5. Select type: "Web App"
- * 6. Set Description: "Flytz Email Capture"
- * 7. Set "Execute as": "Me"
- * 8. Set "Who has access": "Anyone" (CRITICAL STEP)
- * 9. Click "Deploy"
- * 10. Copy the "Web App URL" provided (ends in /exec)
- * 11. Paste it inside the quotes below:
+ * ... (Comments kept for reference)
  */
 
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwt96-2REo4TEsMq2wdzT_9HlGjw0Xp5KMSCQp8ZLMqehx-7w8u8CIJ3sFRPODu2NyjTg/exec"; 
 
 export default function HomePage() {
+  const navigate = useNavigate();
+  const { updateProfile, updateTrip, profile } = useFlightStrategy();
+  
+  // Waitlist State
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+
+  // AI Search State
+  const [aiQuery, setAiQuery] = useState('');
+  const [isParsing, setIsParsing] = useState(false);
 
   const handleJoinWaitlist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !email.includes('@')) return;
-
     setStatus('submitting');
-
-    // 1. LOCAL BACKUP LOGGING (Ensures you can extract emails even if Google Sheets fails)
     try {
         const logKey = 'flytz_email_waitlist_backup';
         const existingLogs = localStorage.getItem(logKey);
         const logs = existingLogs ? JSON.parse(existingLogs) : [];
-        logs.push({ 
-            email: email, 
-            date: new Date().toISOString(),
-            synced: false 
-        });
+        logs.push({ email: email, date: new Date().toISOString(), synced: false });
         localStorage.setItem(logKey, JSON.stringify(logs));
-    } catch (err) {
-        console.warn("Failed to save local backup", err);
-    }
-
-    // 2. SEND TO GOOGLE SHEETS
+    } catch (err) { console.warn("Failed to save local backup", err); }
     try {
       if (GOOGLE_SCRIPT_URL) {
           await fetch(GOOGLE_SCRIPT_URL, {
               method: 'POST',
               body: JSON.stringify({ email }),
-              mode: 'no-cors', // Important for Google Apps Script cors policy
+              mode: 'no-cors', 
               headers: { 'Content-Type': 'application/json' }
           });
-      } else {
-          // Simulation for UI demonstration if no URL is set
-          console.log("Simulating submission to Google Sheets for:", email);
-          await new Promise(resolve => setTimeout(resolve, 1500));
+      } else { await new Promise(resolve => setTimeout(resolve, 1500)); }
+      setStatus('success'); setEmail('');
+    } catch (error) { console.error("Submission failed", error); setStatus('error'); }
+  };
+
+  const handleAiSearch = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!aiQuery.trim()) return;
+      
+      setIsParsing(true);
+      audioEffects.playClick();
+
+      try {
+          // Parse natural language input via Gemini
+          const result = await parseNaturalLanguageQuery(aiQuery);
+          
+          if (result) {
+              // Create default or load existing profile state
+              const currentProfile = profile || { 
+                  homeAirports: ['JFK'], 
+                  chaosLevel: 3, 
+                  budgetMax: 2000 
+              };
+
+              // Update Profile Context
+              updateProfile({
+                  ...currentProfile,
+                  homeAirports: result.origin ? [result.origin] : currentProfile.homeAirports,
+                  budgetMax: result.budget || currentProfile.budgetMax
+              });
+
+              // Update Trip Context including new keywords
+              updateTrip({
+                  destinationRegions: result.destination ? [result.destination] : ['Southeast Asia'],
+                  durationMin: 7,
+                  startDate: new Date().toISOString().split('T')[0],
+                  flexibleDays: 3,
+                  contextKeywords: result.keywords // Store these for the Strategy AI
+              });
+
+              audioEffects.playSuccess();
+              // Navigate to wizard which will now have these pre-filled defaults
+              navigate('/wizard');
+          }
+      } catch (error) {
+          console.error("AI Parse Failed", error);
+          navigate('/wizard'); // Fallback
+      } finally {
+          setIsParsing(false);
       }
-      setStatus('success');
-      setEmail('');
-    } catch (error) {
-      console.error("Submission failed", error);
-      setStatus('error');
-    }
   };
 
   return (
@@ -91,7 +111,6 @@ export default function HomePage() {
           FLYTZ
         </h1>
         
-        {/* Restored Blue Gradient + Shadow + Padding for safety */}
         <div className="text-3xl sm:text-5xl font-black tracking-tight uppercase bg-gradient-to-r from-brand-300 via-brand-400 to-brand-500 bg-clip-text text-transparent drop-shadow-lg pb-2">
             FLIGHT HACKING ENGINE
         </div>
@@ -101,8 +120,38 @@ export default function HomePage() {
         </p>
       </div>
 
+      {/* AI Search Bar (Added between Hero and Buttons) */}
+      <div className="w-full max-w-2xl relative z-20 animate-in slide-in-from-bottom-4 duration-500 delay-100 px-4">
+          <form onSubmit={handleAiSearch} className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-brand-600 to-purple-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+              <div className="relative bg-slate-950/80 backdrop-blur-xl border border-brand-500/30 rounded-2xl p-2 flex items-center shadow-2xl">
+                  <div className="pl-4 pr-3 text-brand-400">
+                      <Sparkles className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <input 
+                      type="text" 
+                      value={aiQuery}
+                      onChange={(e) => setAiQuery(e.target.value)}
+                      placeholder="I want a trip to a country with private beaches, jacuzzis, under $600..."
+                      className="bg-transparent border-none outline-none flex-1 text-white placeholder:text-slate-500 text-sm sm:text-lg font-medium w-full"
+                      disabled={isParsing}
+                  />
+                  <button 
+                      type="submit" 
+                      disabled={isParsing || !aiQuery}
+                      className="bg-brand-600 hover:bg-brand-500 text-white p-3 rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100"
+                  >
+                      {isParsing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                  </button>
+              </div>
+          </form>
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mt-3 text-[10px] font-mono text-slate-500 uppercase tracking-widest">
+              <span>Auto-Parse Budget</span> • <span>Detect Amenities</span> • <span>Infer Region</span>
+          </div>
+      </div>
+
       {/* CTA Buttons */}
-      <div className="flex flex-col sm:flex-row gap-6 w-full sm:w-auto relative z-10">
+      <div className="flex flex-col sm:flex-row gap-6 w-full sm:w-auto relative z-10 px-4">
         <Link 
           to="/wizard" 
           className={BUTTON_PRIMARY_CLASSES + " text-lg px-12 py-5 h-auto ring-1 ring-white/20"}
@@ -115,7 +164,7 @@ export default function HomePage() {
       </div>
 
       {/* Waitlist / Email Capture Section */}
-      <div className="w-full max-w-sm mx-auto relative z-10 animate-in slide-in-from-bottom-4 duration-700 fade-in">
+      <div className="w-full max-w-sm mx-auto relative z-10 animate-in slide-in-from-bottom-4 duration-700 fade-in px-4">
         <div className={`glass-panel p-1.5 rounded-2xl flex items-center border transition-all duration-300 ${status === 'success' ? 'border-emerald-500/50 bg-emerald-900/10' : 'border-brand-500/30 hover:border-brand-500/50'}`}>
             <div className="pl-3 pr-2">
                 {status === 'success' ? (
@@ -163,7 +212,7 @@ export default function HomePage() {
       </div>
 
       {/* Features Grid - Glassmorphism */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12 text-left w-full max-w-6xl">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12 text-left w-full max-w-6xl px-4">
         {[ 
           { icon: Map, title: 'Analyze', desc: 'Input home base & travel preferences.' },
           { icon: Rocket, title: 'Strategize', desc: 'Get step-by-step route options.' },

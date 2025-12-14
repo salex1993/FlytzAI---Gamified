@@ -33,6 +33,7 @@ export interface TripPlan {
   durationMin: number;
   startDate: string; // ISO String for simplicity in v1
   flexibleDays: number;
+  contextKeywords?: string[]; // NEW: Stores "jacuzzi", "private beach", etc.
 }
 
 export interface StrategyPrompt {
