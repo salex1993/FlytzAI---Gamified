@@ -1,0 +1,153 @@
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flytz: Intelligent Flight Hacking Engine</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              slate: {
+                850: '#151e2e',
+                900: '#0f172a',
+                950: '#020617',
+              },
+              brand: {
+                400: '#38bdf8', // Light Blue
+                500: '#3b82f6', // Blue
+                600: '#2563eb', // Darker Blue
+                accent: '#22d3ee', // Cyan
+              },
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            animation: {
+              'float': 'float 6s ease-in-out infinite',
+              'pulse-glow': 'pulse-glow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'radar-spin': 'radar-spin 4s linear infinite',
+            },
+            keyframes: {
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-10px)' },
+              },
+              'pulse-glow': {
+                '0%, 100%': { opacity: '1', filter: 'brightness(1.2)' },
+                '50%': { opacity: '0.8', filter: 'brightness(1)' },
+              },
+              'radar-spin': {
+                '0%': { transform: 'rotate(0deg)' },
+                '100%': { transform: 'rotate(360deg)' },
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      body {
+        background-color: #020617;
+        color: #f8fafc;
+        margin: 0;
+        overflow-x: hidden;
+      }
+
+      /* Cinematic Noise Overlay */
+      .noise-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 50;
+        opacity: 0.035;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      }
+      
+      /* Glowing Text Utility */
+      .text-glow {
+        text-shadow: 
+          0 0 10px rgba(56, 189, 248, 0.5),
+          0 0 20px rgba(56, 189, 248, 0.3),
+          0 0 40px rgba(59, 130, 246, 0.2);
+      }
+
+      /* Cyber Title Pop */
+      .title-cyber {
+        background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 45%, #94a3b8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 25px rgba(56, 189, 248, 0.4));
+        position: relative;
+        z-index: 10;
+      }
+      
+      /* Premium Glassmorphism */
+      .glass-panel {
+        background: rgba(2, 6, 23, 0.5);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(56, 189, 248, 0.15);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      }
+
+      .glass-panel:hover {
+        border-color: rgba(56, 189, 248, 0.3);
+        box-shadow: 0 8px 32px rgba(56, 189, 248, 0.1);
+      }
+
+      /* Scrollbar aesthetics */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #020617; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #1e293b; 
+        border-radius: 4px;
+        border: 2px solid #020617;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #38bdf8; 
+      }
+    </style>
+    <!-- Safety Shim for process.env -->
+    <script>
+      window.process = window.process || { env: {} };
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.1",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "scheduler": "https://unpkg.com/scheduler@0.23.0/index.js"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
