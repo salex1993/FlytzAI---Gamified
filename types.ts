@@ -33,7 +33,7 @@ export interface TripPlan {
   durationMin: number;
   startDate: string; // ISO String for simplicity in v1
   flexibleDays: number;
-  contextKeywords?: string[]; // NEW: Stores "jacuzzi", "private beach", etc.
+  contextKeywords?: string[]; 
 }
 
 export interface StrategyPrompt {
@@ -56,36 +56,35 @@ export interface StrategyActionPlan {
 export interface BookingStepLink {
   label: string;
   url: string;
-  provider: 'Google Flights' | 'Skyscanner' | 'Kiwi' | 'Direct Airline';
+  provider: 'Google Flights' | 'Skyscanner' | 'Kiwi' | 'Direct Airline' | 'PrivateFly' | 'JSX';
 }
 
 export interface RoutePattern {
   id: string;
   name: string;
   nodes: string[];
-  type: 'Direct' | 'Positioning' | 'Split-Ticket' | 'Hub-Spoke' | 'Hidden-City' | 'Loop';
+  type: 'Direct' | 'Positioning' | 'Split-Ticket' | 'Hub-Spoke' | 'Hidden-City' | 'Loop' | 'Private-Charter';
   description: string;
   rationale: string; // Why this works
   tradeOffs: string[]; // Downsides
   actionPlans: StrategyActionPlan[]; // Tool-specific steps
-  stepLinks?: BookingStepLink[]; // NEW: Specific links to book the legs
+  stepLinks?: BookingStepLink[]; 
   risk: 'Low' | 'Medium' | 'High';
   estimatedSavings: string;
-  // Enhanced metadata
-  seasonality?: string[]; // e.g., ["May", "Sep", "Oct"] for best prices
-  minConnectionTime?: string; // Recommended buffer e.g., "4h"
-  bookingWindow?: string; // e.g., "45-60 days out"
+  seasonality?: string[]; 
+  minConnectionTime?: string; 
+  bookingWindow?: string; 
 }
 
 export interface StrategySolution {
-  condition: string; // e.g. "Over Budget"
+  condition: string; 
   title: string;
   description: string;
   suggestedActions: string[];
 }
 
 export interface SearchLink {
-  provider: 'Google Flights' | 'Google Explore' | 'Skyscanner' | 'Kayak';
+  provider: 'Google Flights' | 'Google Explore' | 'Skyscanner' | 'Kayak' | 'PrivateFly';
   label: string;
   url: string;
   primary: boolean;
@@ -94,15 +93,11 @@ export interface SearchLink {
 export interface Strategy {
   id: string;
   summary: string;
-  // Layered Plans
   corePlan: RoutePattern[];
   backupPlans: RoutePattern[];
   chaosPlans: RoutePattern[];
-  // Tactics
   solutions: StrategySolution[];
-  // Deep Links
   searchLinks: SearchLink[];
-  // Legacy/Helper
   prompts: StrategyPrompt[]; 
   steps: StrategyStep[]; 
 }
@@ -132,6 +127,18 @@ export interface LocationOption {
   keywords?: string[];
 }
 
+// Private Sector Types
+export interface Aircraft {
+  id: string;
+  name: string;
+  category: 'Very Light Jet' | 'Light Jet' | 'Midsize Jet' | 'Super Midsize' | 'Heavy Jet' | 'Ultra Long Range';
+  paxMax: number;
+  rangeNm: number;
+  speedKts: number;
+  hourlyRateEstimate: number;
+  amenities: string[];
+}
+
 // Live Data Types
 export interface FlightSegment {
   departure: { iataCode: string; at: string; terminal?: string };
@@ -139,16 +146,15 @@ export interface FlightSegment {
   carrierCode: string;
   number: string;
   duration: string;
-  // Enhanced segment details
-  cabin?: 'ECONOMY' | 'PREMIUM_ECONOMY' | 'BUSINESS' | 'FIRST';
-  aircraftCode?: string; // e.g. "789"
-  amenities?: string[]; // e.g. ["WiFi", "Power"]
+  cabin?: 'ECONOMY' | 'PREMIUM_ECONOMY' | 'BUSINESS' | 'FIRST' | 'PRIVATE';
+  aircraftCode?: string; 
+  amenities?: string[]; 
 }
 
 export interface FlightDeal {
   id: string;
-  source: 'Amadeus' | 'Mock';
-  rawOffer?: any; // Store original Amadeus object for Pricing confirmation
+  source: 'Amadeus' | 'Mock' | 'Charter';
+  rawOffer?: any; 
   price: {
     total: string;
     currency: string;
@@ -156,68 +162,19 @@ export interface FlightDeal {
     fees?: string;
   };
   airlines: string[];
-  segments: FlightSegment[]; // Simplified to just outbound for v1 display
+  segments: FlightSegment[]; 
   deepLink?: string;
   duration: string;
   stops: number;
-  // Enhanced deal details
-  fareClass?: string; // e.g. "Basic Economy"
-  layoverDurations?: string[]; // Calculated duration of stops between segments
+  fareClass?: string; 
+  layoverDurations?: string[]; 
   baggageInfo?: {
     includedCheckedBags: number;
     estimatedBagFee?: number;
     unit?: 'KG' | 'PC';
   };
-}
-
-// --- NEW TYPES FOR EXPANDED AMADEUS FEATURES ---
-
-export interface HotelOffer {
-  id: string;
-  name: string;
-  hotelId: string;
-  cityCode: string;
-  rating?: number;
-  latitude?: number;
-  longitude?: number;
-  price: {
-    total: string;
-    currency: string;
-  };
-  description?: string;
-  amenities?: string[];
-  media?: { uri: string; category?: string }[];
-}
-
-export interface ActivityOffer {
-  id: string;
-  name: string;
-  shortDescription?: string;
-  rating?: string;
-  price?: {
-    amount: string;
-    currencyCode: string;
-  };
-  pictures?: string[];
-  bookingLink?: string;
-  geoCode?: {
-    latitude: number;
-    longitude: number;
-  };
-}
-
-export interface InspirationFlight {
-  origin: string;
-  destination: string;
-  departureDate: string;
-  returnDate?: string;
-  price: {
-    total: string;
-  };
-  links: {
-    flightDates: string;
-    flightOffers: string;
-  };
+  aircraft?: Aircraft;
+  emptyLeg?: boolean;
 }
 
 export interface AIAnalysis {
@@ -238,4 +195,38 @@ export interface SavedStrategy {
   strategy: Strategy;
   deals: FlightDeal[];
   aiAnalysis: AIAnalysis | null;
+}
+
+export interface HotelOffer {
+  id: string;
+  hotelId: string;
+  name: string;
+  cityCode: string;
+  rating?: number;
+  price: {
+    total: string;
+    currency: string;
+  };
+}
+
+export interface ActivityOffer {
+  id: string;
+  name: string;
+  shortDescription?: string;
+  rating?: string;
+  price?: {
+    amount: string;
+    currencyCode: string;
+  };
+  pictures?: string[];
+  bookingLink?: string;
+}
+
+export interface InspirationFlight {
+  origin: string;
+  destination: string;
+  departureDate: string;
+  returnDate?: string;
+  price: { total: string };
+  links?: any;
 }

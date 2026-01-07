@@ -7,6 +7,7 @@ import WizardPage from './pages/WizardPage';
 import StrategyPage from './pages/StrategyPage';
 import KnowledgePage from './pages/KnowledgePage';
 import FaqPage from './pages/FaqPage';
+import PitchDeckPage from './pages/PitchDeckPage';
 import { FlightStrategyProvider } from './context/FlightStrategyContext';
 import BackgroundScene from './components/3d/BackgroundScene';
 
@@ -14,13 +15,8 @@ function App() {
   return (
     <FlightStrategyProvider>
       <HashRouter>
-        {/* Cinematic Noise Overlay */}
         <div className="noise-overlay" />
-
-        {/* 3D Background */}
         <BackgroundScene />
-        
-        {/* App Content */}
         <div className="relative z-10">
           <Routes>
             <Route path="/" element={<AppShell />}>
@@ -29,6 +25,7 @@ function App() {
               <Route path="strategy" element={<StrategyPage />} />
               <Route path="knowledge" element={<KnowledgePage />} />
               <Route path="faq" element={<FaqPage />} />
+              <Route path="pitch" element={<PitchDeckPage />} />
             </Route>
           </Routes>
         </div>
